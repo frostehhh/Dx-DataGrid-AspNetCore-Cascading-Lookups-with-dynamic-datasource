@@ -1,0 +1,97 @@
+@using T880809.Models
+@model DataGridViewModel
+
+<h2>Home</h2>
+
+@(Html.DevExtreme().DataGrid<SampleOrder>
+    ()
+    .ShowBorders(true)
+    .DataSource(d => d.Mvc().Controller("SampleData").LoadAction("Get").Key("OrderID"))
+    .Columns(columns => {
+        columns.AddFor(m => m.OrderID);
+        columns.AddFor(m => m.OrderDate);
+        columns.AddFor(m => m.CustomerName);
+        columns.AddFor(m => m.ShipCountry)
+            .SetCellValue("setCountryValue")
+            .Lookup(lookup => lookup
+                .DataSource(d => d.Mvc().LoadAction("GetCountries").Key("ID"))
+                .DisplayExpr("Name")
+                .ValueExpr("ID")
+            );
+        columns.AddFor(m => m.ShipCity)
+            .CalculateDisplayValue(new JS("calculateDisplayValue"))
+            .Lookup(lookup => lookup
+                .DataSource(new JS("getDataSource"))
+                .DisplayExpr("Name")
+                .ValueExpr("ID")
+            );
+    })
+    .Editing(e => e.AllowUpdating(true))
+    .Paging(p => p.PageSize(10))
+    .FilterRow(f => f.Visible(true))
+    .HeaderFilter(f => f.Visible(true))
+    .GroupPanel(p => p.Visible(true))
+    .Grouping(g => g.AutoExpandAll(false))
+    .RemoteOperations(true)
+    .Summary(s => s
+    .TotalItems(totalItems => {
+        totalItems.AddFor(m => m.ShipCity).SummaryType(SummaryType.Count);
+    })
+    .GroupItems(groupItems => {
+        groupItems.Add().SummaryType(SummaryType.Count);
+    })
+    )
+    )
+
+
+<script>
+    // Store lookup data in JS variables
+    var citiesUSData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.CitiesUS)),
+        citiesRussiaData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.CitiesRussia)),
+        citiesUnitedKingdomData = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.CitiesUnitedKingdom));
+
+    function setCountryValue(rowData, value) {
+        rowData.ShipCountry = value;
+        rowData.ShipCity = null;
+    }
+
+    function getDataSource(options) {
+        if (options && options.data) {
+            let countryID = options.data.ShipCountry;
+
+            // dynamically assign DataSource
+            if (countryID === 1) {
+                return citiesUSData;
+            } else if (countryID === 2) {
+                return citiesUnitedKingdomData
+            } else if (countryID === 3) {
+                return citiesRussiaData;
+            }
+        }
+        return null;
+    }
+
+    function calculateDisplayValue(rowData) {
+        let countryID = rowData.ShipCountry;
+        let cityID = rowData.ShipCity;
+        let data = null;
+
+        // Select DataSource
+        if (countryID === 1) {
+            data = citiesUSData;
+        } else if (countryID === 2) {
+            data = citiesUnitedKingdomData
+        } else if (countryID === 3) {
+            data = citiesRussiaData;
+        }
+
+        // Find display value
+        for (let i = 0; i < data.length; i++) {
+            if (data[i].ID = cityID) {
+                return data[i].Name;
+            }
+        }
+
+        return rowData.ShipCity;
+    }
+</script>
